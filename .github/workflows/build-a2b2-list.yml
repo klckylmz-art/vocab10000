@@ -1,0 +1,74 @@
+name: Build Clean A2-B2 Vocabulary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/build-a2b2-list.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install lemma helper
+        run: pip install lemminflect
+      - name: Build A2-B2 list
+        run: |
+          curl -L --fail --retry 3 \
+            https://raw.githubusercontent.com/Maximax67/Words-CEFR-Dataset/main/datasets/word_list_cefr.csv \
+            -o /tmp/cefr.csv
+          python - <<'PY'
+          import csv,re
+          from pathlib import Path
+          from lemminflect import getLemma
+
+          levels={'A2','B1','B2'}
+          proper_junk=set('''aborigine american british canadian chinese french german indian japanese russian spanish australian african asian european dutch danish arab english scottish welsh irish london paris berlin rome madrid tokyo beijing india china japan france germany canada america england scotland wales ireland australia africa asia europe texas california florida york washington chicago angeles nauru'''.split())
+          abbrev_junk=set('''am pm a.m. p.m. etc tv pc dvd cd usb html pdf jpg jpeg png gif www url rss kb mb gb tb khz mhz ghz'''.split())
+          basic=set('''a an the of to in on at by for from with and or but as if so than that this these those i me my mine we us our ours you your yours he him his she her hers it its they them their theirs who whom whose what which where when why how is am are was were be been being do does did have has had having can could may might must shall should will would not no yes one two first second'''.split())
+          posmap={'noun':'NOUN','verb':'VERB','adjective':'ADJ','adverb':'ADV'}
+          rows=[]
+          with open('/tmp/cefr.csv',encoding='utf-8-sig',newline='') as f:
+              for r in csv.DictReader(f,delimiter=';'):
+                  lvl=(r.get('CEFR') or '').strip()
+                  if lvl not in levels: continue
+                  w=(r.get('headword') or '').strip().lower()
+                  pos=(r.get('pos') or '').strip().lower()
+                  if not w or ' ' in w or '-' in w or "'" in w: continue
+                  if not re.fullmatch(r'[a-z]+',w): continue
+                  if len(w)<3 or len(w)>18: continue
+                  if w in basic or w in proper_junk or w in abbrev_junk: continue
+                  core=' '.join((r.get('CoreInventory 1',''),r.get('CoreInventory 2',''),r.get('Threshold',''))).lower()
+                  if 'nationalities and countries' in core: continue
+                  lemma=w
+                  upos=posmap.get(pos)
+                  if upos:
+                      try:
+                          vals=getLemma(w,upos=upos)
+                          if vals and re.fullmatch(r'[a-z]+',vals[0]): lemma=vals[0]
+                      except Exception: pass
+                  if lemma in basic or lemma in proper_junk or lemma in abbrev_junk: continue
+                  rows.append((lemma,lvl,pos))
+
+          rank={'A2':0,'B1':1,'B2':2}
+          best={}
+          for lemma,lvl,pos in rows:
+              if lemma not in best or rank[lvl]<rank[best[lemma][0]]:
+                  best[lemma]=(lvl,pos)
+
+          # Order A2 -> B1 -> B2, alphabetical inside level.
+          out=sorted(((w,lvl,pos) for w,(lvl,pos) in best.items()), key=lambda x:(rank[x[1]],x[0]))
+          Path('a2b2_words.tsv').write_text('\n'.join(f'{w}\t{lvl}\t{pos}' for w,lvl,pos in out)+'\n',encoding='utf-8')
+          print('TOTAL',len(out))
+          from collections import Counter
+          print(Counter(l for _,l,_ in out))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: A2-B2-Clean-Words
+          path: a2b2_words.tsv
