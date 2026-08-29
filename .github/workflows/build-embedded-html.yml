@@ -1,0 +1,65 @@
+name: Build Embedded Vocab7000 HTML
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/build-embedded-html.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build embedded HTML
+        run: |
+          python - <<'PY'
+          import json,re
+          from pathlib import Path
+
+          words=[x.strip() for x in Path('generated/clean_words.txt').read_text(encoding='utf-8').splitlines() if x.strip()]
+          if len(words)!=6700: raise SystemExit(f'Expected 6700 words, got {len(words)}')
+          old=Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
+          m=re.search(r'const PHRASALS=(\[.*?\]);',old,re.S)
+          if not m: raise SystemExit('Phrasal list not found')
+          phrasals=json.loads(m.group(1))
+          if len(phrasals)!=300: raise SystemExit(f'Expected 300 phrasals, got {len(phrasals)}')
+          bad={'benq','nauru','angeles','khz','tvs','pcs','dvds','adventurou','alway','anxiou','capaciou','cautiou'}
+          if bad.intersection(words): raise SystemExit('Bad vocabulary survived: '+','.join(sorted(bad.intersection(words))))
+
+          cards=[{'text':w,'type':'word'} for w in words]+[{'text':p,'type':'phrasal verb'} for p in phrasals]
+          cards_js=json.dumps(cards,ensure_ascii=False,separators=(',',':'))
+
+          html='''<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Vocab 7000</title>
+<style>
+:root{color-scheme:light dark;--bg:#0d1117;--card:#161b22;--text:#f0f6fc;--muted:#8b949e;--line:#30363d;--accent:#2f81f7}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}.app{max-width:760px;margin:auto;padding:16px 14px 150px;min-height:100dvh}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}h1{font-size:20px;margin:0}.counter{font-size:13px;color:var(--muted)}.progress{height:5px;background:var(--line);border-radius:10px;overflow:hidden;margin:12px 0}.bar{height:100%;width:0;background:var(--accent)}.card{border:1px solid var(--line);border-radius:22px;background:var(--card);padding:24px 18px;text-align:center;min-height:360px;display:grid;grid-template-rows:28px 96px 1fr;align-items:start}.badge{font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;align-self:center}.word{font-size:clamp(38px,10vw,70px);font-weight:800;line-height:1.06;overflow-wrap:anywhere;height:96px;display:flex;align-items:center;justify-content:center}.meta{min-height:150px;margin-top:10px;color:var(--muted);font-size:15px;line-height:1.45}.meanings{margin-top:14px;display:grid;gap:7px;text-align:left;max-width:520px;margin-left:auto;margin-right:auto}.meaning-row{padding:7px 10px;border-radius:10px;background:rgba(127,127,127,.08);color:var(--text)}.meaning-no{display:inline-block;min-width:22px;color:var(--muted);font-weight:700}.bottom-dock{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(760px,100%);padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);z-index:20}.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:0}.row{margin-top:9px;display:flex;justify-content:flex-end}button{min-height:48px;border-radius:13px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:15px;padding:10px}button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}button.on{outline:2px solid var(--accent);border-color:var(--accent)}#shuffle{flex:0 0 56px;font-size:24px;padding:8px}@media(max-width:480px){.controls{grid-template-columns:repeat(3,1fr)}.card{min-height:350px;padding:20px 14px}}
+</style></head><body><main class="app"><div class="top"><h1>Vocab 7000</h1><div id="counter" class="counter"></div></div><div class="progress"><div id="bar" class="bar"></div></div><section class="card"><div id="badge" class="badge"></div><div id="word" class="word"></div><div id="meta" class="meta"></div></section><div class="bottom-dock"><div class="controls"><button id="prev">← Previous</button><button id="next" class="primary">Next →</button><button id="auto">▶ Auto</button></div><div class="row"><button id="shuffle" aria-label="Shuffle" title="Shuffle">🔀</button></div></div></main>
+<script>(()=>{'use strict';const CARDS=__CARDS__;const AFTER=500;let order=Array.from({length:CARDS.length},(_,i)=>i),pos=0,autoplay=false,shuffled=false,autoToken=0,voice=null,renderToken=0;const cache=new Map(),promises=new Map(),$=id=>document.getElementById(id),word=$('word'),badge=$('badge'),meta=$('meta'),counter=$('counter'),bar=$('bar');
+function current(){return CARDS[order[pos]]}function chooseVoice(){const vs=speechSynthesis.getVoices();const gb=vs.filter(v=>/^en[-_]gb/i.test(v.lang)||/british|united kingdom|uk english/i.test(v.name));voice=gb.find(v=>/male|daniel|george|ryan|oliver|arthur|alfie|thomas/i.test(v.name))||gb[0]||vs.find(v=>/^en/i.test(v.lang))||null}if('speechSynthesis'in window){chooseVoice();speechSynthesis.onvoiceschanged=chooseVoice}
+function speakText(t){return new Promise(resolve=>{if(!('speechSynthesis'in window)){resolve();return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-GB';if(voice)u.voice=voice;u.rate=.96;u.pitch=.92;let done=false;const fin=()=>{if(!done){done=true;resolve()}};u.onend=fin;u.onerror=fin;speechSynthesis.speak(u)})}
+function useful(m,src){m=String(m||'').trim();if(!m||m.length>55)return false;const l=m.toLocaleLowerCase('tr-TR');if(l===src.toLocaleLowerCase('tr-TR'))return false;if(/^(tv|pc|dvd|cd|usb|url|html|pdf|jpg|jpeg|png|gif|mp3|mp4)$/i.test(l))return false;return !/[<>]/.test(m)}
+async function fetchTr(t){if(cache.has(t))return cache.get(t);if(promises.has(t))return promises.get(t);const p=(async()=>{const out=[];const add=m=>{m=String(m||'').trim();if(!useful(m,t))return;const n=m.toLocaleLowerCase('tr-TR');if(out.some(x=>{const z=x.toLocaleLowerCase('tr-TR');return z===n||z.includes(n)||n.includes(z)}))return;out.push(m)};try{const u='https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&dt=bd&q='+encodeURIComponent(t);const r=await fetch(u,{cache:'no-store'});const d=await r.json();if(Array.isArray(d[0]))d[0].forEach(x=>x&&add(x[0]));if(Array.isArray(d[1]))d[1].forEach(g=>{if(Array.isArray(g)&&Array.isArray(g[2]))g[2].forEach(x=>add(Array.isArray(x)?x[0]:x))});}catch{}if(!out.length)try{const r=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(t)+'&langpair=en|tr',{cache:'no-store'});const d=await r.json();add(d?.responseData?.translatedText)}catch{}const a=out.slice(0,3);cache.set(t,a);promises.delete(t);return a})();promises.set(t,p);return p}
+function prefetch(n=8){for(let k=1;k<=n;k++){const p=(pos+k)%order.length;fetchTr(CARDS[order[p]].text)}}
+async function render(){const c=current(),tok=++renderToken;const tr=await fetchTr(c.text);if(tok!==renderToken||current().text!==c.text)return;word.textContent=c.text;badge.textContent=c.type;counter.textContent=(pos+1).toLocaleString()+' / 7,000';bar.style.width=((pos+1)/70)+'%';meta.innerHTML='<div class="meanings">'+(tr.length?tr:['—']).map((m,i)=>'<div class="meaning-row"><span class="meaning-no">'+(i+1)+'.</span>'+m+'</div>').join('')+'</div>';$('shuffle').classList.toggle('on',shuffled);$('auto').textContent=autoplay?'⏸ Pause':'▶ Auto';$('auto').classList.toggle('on',autoplay);prefetch()}
+async function move(d){const np=(pos+d+order.length)%order.length;await fetchTr(CARDS[order[np]].text);pos=np;render()}
+function shuffleOrder(){const cur=order[pos];for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}pos=Math.max(0,order.indexOf(cur))}function toggleShuffle(){shuffled=!shuffled;if(shuffled)shuffleOrder();else{const idx=order[pos];order=Array.from({length:CARDS.length},(_,i)=>i);pos=idx}render()}
+async function loop(tok){while(autoplay&&tok===autoToken){await speakText(current().text);if(!autoplay||tok!==autoToken)break;await new Promise(r=>setTimeout(r,AFTER));const np=(pos+1)%order.length;await fetchTr(CARDS[order[np]].text);if(!autoplay||tok!==autoToken)break;pos=np;await render()}}function toggleAuto(){autoplay=!autoplay;autoToken++;if(autoplay)loop(autoToken);else if('speechSynthesis'in window)speechSynthesis.cancel();render()}
+$('prev').onclick=()=>move(-1);$('next').onclick=()=>move(1);$('shuffle').onclick=toggleShuffle;$('auto').onclick=toggleAuto;render();})();</script></body></html>'''.replace('__CARDS__',cards_js)
+          Path('generated/Vocab7000_Embedded.html').write_text(html,encoding='utf-8')
+          print('Built embedded HTML with',len(cards),'cards')
+          PY
+      - name: Commit HTML
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add generated/Vocab7000_Embedded.html
+          git commit -m "Build fully embedded Vocab7000 HTML" || exit 0
+          git push
