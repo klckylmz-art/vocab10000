@@ -1,0 +1,48 @@
+name: Build Final Embedded Vocab7000
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/build-embedded-final.yml'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build embedded HTML
+        run: |
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          words=[x.strip() for x in Path('generated/clean_words.txt').read_text(encoding='utf-8').splitlines() if x.strip()]
+          if len(words)!=6700: raise SystemExit(f'Expected 6700 words, got {len(words)}')
+          old=Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
+          pm=re.search(r'const PHRASALS=(\[.*?\]);',old,re.S)
+          if not pm: raise SystemExit('Phrasal list missing')
+          phrasals=json.loads(pm.group(1))
+          if len(phrasals)!=300: raise SystemExit(f'Expected 300 phrasals, got {len(phrasals)}')
+          broken=Path('.github/workflows/build-embedded-html.yml').read_text(encoding='utf-8')
+          tm=re.search(r"html='''(.*?)'''.replace\('__CARDS__',cards_js\)",broken,re.S)
+          if not tm: raise SystemExit('Embedded template missing')
+          template=tm.group(1)
+          cards=[{'text':w,'type':'word'} for w in words]+[{'text':p,'type':'phrasal verb'} for p in phrasals]
+          html=template.replace('__CARDS__',json.dumps(cards,ensure_ascii=False,separators=(',',':')))
+          banned=('benq','nauru','angeles','khz','tvs','pcs','dvds','adventurou','alway','anxiou','capaciou','cautiou')
+          low=html.lower()
+          for b in banned:
+              if f'"text":"{b}"' in low: raise SystemExit('Banned card survived: '+b)
+          if 'fetch(SOURCE' in html or 'slideshare.net/slideshow' in html: raise SystemExit('External vocabulary fetch survived')
+          if len(cards)!=7000: raise SystemExit('Wrong card count')
+          Path('generated').mkdir(exist_ok=True)
+          Path('generated/Vocab7000_Embedded.html').write_text(html,encoding='utf-8')
+          print('Built embedded HTML:',len(cards),'cards')
+          PY
+      - name: Upload HTML artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vocab7000-Embedded
+          path: generated/Vocab7000_Embedded.html
