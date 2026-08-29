@@ -40,8 +40,8 @@ jobs:
           BASIC=set('''a an the of to in on at by for from with and or but as if so than that this these those i me my mine we us our ours you your yours he him his she her hers it its they them their theirs who whom whose what which where when why how is am are was were be been being do does did have has had having can could may might must shall should will would not no yes very more most much many some any all each every both either neither one two first second other another same own such only just also even still already too again here there then now up down out off over under into onto upon about before after during while since until through without within between among against per via'''.split())
           JUNK=set('''www com net org html http https php pdf jpg jpeg png gif mp3 mp4 online website site page pages click download login password copyright privacy terms search links link url email fax rss ebay yahoo google amazon microsoft sony nokia cnet benq xbox linux canon ford samsung paypal dvd cd tv pc usb gmt utc pst est cst mst cet cest khz mhz ghz hz kb mb gb tb kbps mbps gbps dpi ppi px rpm mph kph isbn faq xml llc ltd inc plc corp dept govt jan feb mar apr jun jul aug sep oct nov dec mon tue wed thu fri sat sun casino poker viagra porn nude sexy anal pussy rape incest milf hardcore xxx fucking cum'''.split())
           PROPER=set('''angeles nauru san york london washington chicago boston paris vegas francisco los texas california florida virginia georgia carolina colorado ohio michigan illinois jersey columbia pacific canada china france germany india japan australia africa asia europe ireland italy spain mexico iraq england america british canadian chinese french german indian japanese russian spanish australian european african asian john david james michael paul george thomas william peter mary robert richard martin mike tom chris charles steve scott smith bob jack lee april december christian christmas egyptian dutch dane arab'''.split())
-          S_EX=set('''access address analysis apparatus atlas basis bias bonus boss bus business campus canvas chaos class compass cross crisis dress economics ethics fitness focus gas glass illness lens loss mass mathematics news physics politics press process progress series species statistics status success virus witness awareness darkness happiness kindness madness nervousness readiness sadness sickness thickness weakness'''.split())
-          IRR={'children':'child','men':'man','women':'woman','people':'person','teeth':'tooth','feet':'foot','mice':'mouse','geese':'goose','went':'go','gone':'go','came':'come','seen':'see','saw':'see','taken':'take','took':'take','given':'give','gave':'give','made':'make','knew':'know','known':'know','thought':'think','bought':'buy','brought':'bring','caught':'catch','taught':'teach','found':'find','felt':'feel','left':'leave','kept':'keep','held':'hold','heard':'hear','lost':'lose','paid':'pay','said':'say','told':'tell','sold':'sell','sent':'send','spent':'spend','stood':'stand','understood':'understand','wrote':'write','written':'write','spoke':'speak','spoken':'speak','drove':'drive','driven':'drive','ran':'run','began':'begin','begun':'begin','became':'become','built':'build','won':'win','wore':'wear','worn':'wear','better':'good','best':'good','worse':'bad','worst':'bad','ate':'eat','eaten':'eat','drank':'drink','drunk':'drink','drew':'draw','drawn':'draw','flew':'fly','flown':'fly','chose':'choose','chosen':'choose','broke':'break','broken':'break','blew':'blow','blown':'blow','fell':'fall','fallen':'fall','grew':'grow','grown':'grow','killed':'kill'}
+          S_EX=set('''access address analysis apparatus atlas basis bias bonus boss bus business campus canvas chaos class compass cross crisis dress economics ethics fitness focus gas glass illness lens loss mass mathematics news physics politics press process progress series species statistics status success virus witness awareness darkness happiness kindness madness nervousness readiness sadness sickness thickness weakness always alias asparagus census axis bonus campus canvas chaos status virus apparatus'''.split())
+          IRR={'children':'child','men':'man','women':'woman','people':'person','teeth':'tooth','feet':'foot','mice':'mouse','geese':'goose','went':'go','gone':'go','came':'come','seen':'see','saw':'see','taken':'take','took':'take','given':'give','gave':'give','made':'make','knew':'know','known':'know','thought':'think','bought':'buy','brought':'bring','caught':'catch','taught':'teach','found':'find','felt':'feel','left':'leave','kept':'keep','held':'hold','heard':'hear','lost':'lose','paid':'pay','said':'say','told':'tell','sold':'sell','sent':'send','spent':'spend','stood':'stand','understood':'understand','wrote':'write','written':'write','spoke':'speak','spoken':'speak','drove':'drive','driven':'drive','ran':'run','began':'begin','begun':'begin','became':'become','built':'build','won':'win','wore':'wear','worn':'wear','better':'good','best':'good','worse':'bad','worst':'bad','ate':'eat','eaten':'eat','drank':'drink','drunk':'drink','drew':'draw','drawn':'draw','flew':'fly','flown':'fly','chose':'choose','chosen':'choose','broke':'break','broken':'break','blew':'blow','blown':'blow','fell':'fall','fallen':'fall','grew':'grow','grown':'grow'}
           eng=inflect.engine()
           lower_source={t.lower() for t in raw_tokens if t.isalpha()}
 
@@ -57,9 +57,13 @@ jobs:
           def lemma(w):
               if w in IRR: return IRR[w]
               if w.endswith('s') and w not in S_EX:
+                  # Keep natural singular endings such as adventurous, anxious, apparatus.
+                  if re.search(r'(ous|ss|us|is|ias|ics|ness)$',w):
+                      return w
                   s=eng.singular_noun(w)
-                  if isinstance(s,str) and len(s)>=3:
+                  if isinstance(s,str) and len(s)>=3 and s in lower_source:
                       return s
+                  # If it looks plural but no verified singular exists, discard rather than invent.
                   return None
               if w.endswith('ied'):
                   c=w[:-3]+'y'
@@ -77,15 +81,14 @@ jobs:
               if reject_original(tok): continue
               w=lemma(tok.lower())
               if not w or w in BASIC or w in JUNK or w in PROPER: continue
-              if w.endswith('s') and w not in S_EX: continue
               if w not in seen:
                   seen.add(w); out.append(w)
               if len(out)==6700: break
 
           if len(out)!=6700:
               raise SystemExit(f'Only {len(out)} clean words produced')
-          bad=[x for x in ('benq','nauru','angeles','khz','tvs','pcs','dvds') if x in seen]
-          if bad: raise SystemExit('Rejected tokens survived: '+','.join(bad))
+          bad=[x for x in ('benq','nauru','angeles','khz','tvs','pcs','dvds','adventurou','alway','anxiou','capaciou','cautiou') if x in seen]
+          if bad: raise SystemExit('Rejected/broken tokens survived: '+','.join(bad))
           Path('generated').mkdir(exist_ok=True)
           Path('generated/clean_words.txt').write_text('\n'.join(out)+'\n',encoding='utf-8')
           print('Generated',len(out),'clean lemma words')
@@ -95,5 +98,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add generated/clean_words.txt
-          git commit -m "Generate 6700 clean embedded vocabulary words" || exit 0
+          git commit -m "Regenerate 6700 clean embedded vocabulary words" || exit 0
           git push
