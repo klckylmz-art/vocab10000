@@ -1,0 +1,41 @@
+name: Readly Fetch Classics
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/readly-fetch-classics.yml'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Project Gutenberg texts
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p classics
+          curl -L --fail --retry 4 https://www.gutenberg.org/cache/epub/35/pg35.txt -o classics/sf-time-machine.txt
+          curl -L --fail --retry 4 https://www.gutenberg.org/cache/epub/36/pg36.txt -o classics/sf-war-worlds.txt
+          curl -L --fail --retry 4 https://www.gutenberg.org/cache/epub/139/pg139.txt -o classics/sf-lost-world.txt
+          curl -L --fail --retry 4 https://www.gutenberg.org/cache/epub/84/pg84.txt -o classics/sf-frankenstein.txt
+          curl -L --fail --retry 4 https://www.gutenberg.org/cache/epub/18857/pg18857.txt -o classics/sf-journey-centre.txt
+          curl -L --fail --retry 4 https://www.gutenberg.org/cache/epub/43/pg43.txt -o classics/sf-jekyll-hyde.txt
+          curl -L --fail --retry 4 https://www.gutenberg.org/cache/epub/201/pg201.txt -o classics/sf-flatland.txt
+          curl -L --fail --retry 4 https://www.gutenberg.org/cache/epub/10002/pg10002.txt -o classics/sf-house-borderland.txt
+          curl -L --fail --retry 4 https://www.gutenberg.org/cache/epub/1906/pg1906.txt -o classics/sf-erewhon.txt
+          curl -L --fail --retry 4 https://www.gutenberg.org/cache/epub/18247/pg18247.txt -o classics/sf-last-man.txt
+          python - <<'PY'
+          from pathlib import Path
+          for p in Path('classics').glob('*.txt'):
+              s=p.read_text(encoding='utf-8-sig',errors='replace')
+              if len(s)<50000:
+                  raise SystemExit(f'{p} too short: {len(s)}')
+              print(p.name,len(s))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Readly-Classics-Texts
+          path: classics/*.txt
+          if-no-files-found: error
