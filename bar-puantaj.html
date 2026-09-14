@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bar Puantaj ve Ücret Takibi</title>
+<style>
+:root{--bg:#0d1117;--panel:#151b23;--panel2:#1b2430;--line:#2c3948;--text:#eef3f8;--muted:#93a4b7;--accent:#f2b84b;--green:#2ecc8a;--red:#ff6473;--blue:#54a6ff;--radius:16px}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#0a0e13,#121923 55%,#0b1016);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+button,input,select{font:inherit}button{cursor:pointer}.app{max-width:1600px;margin:auto;padding:18px}
+header{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:16px}.brand{display:flex;gap:12px;align-items:center}.logo{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#d98e22);color:#17120a;font-size:24px;box-shadow:0 8px 28px #f2b84b28}.brand h1{font-size:21px;margin:0}.brand p{margin:2px 0 0;color:var(--muted);font-size:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);background:#1a2330;color:var(--text);padding:9px 12px;border-radius:10px;font-weight:700}.btn:hover{border-color:#52647a}.btn.primary{background:var(--accent);color:#211707;border-color:transparent}.btn.danger{color:#ff9da7}
+.toolbar,.card{background:#151c25dd;border:1px solid var(--line);box-shadow:0 12px 40px #0004;border-radius:var(--radius)}
+.toolbar{padding:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.field{display:flex;gap:7px;align-items:center;color:var(--muted);font-size:12px;font-weight:700}.field select,.field input,.table-input{background:#0f151d;color:var(--text);border:1px solid #344255;border-radius:9px;padding:8px;outline:none}.field input:focus,.field select:focus,.table-input:focus{border-color:var(--accent)}
+.modebar{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}.mode{min-width:52px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;color:var(--muted);background:#111821;font-weight:800}.mode.active{background:#f2b84b20;border-color:var(--accent);color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px}.stat{padding:15px}.stat .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:800}.stat .value{font-size:24px;font-weight:850;margin-top:4px}.stat small{color:var(--muted)}
+.section-head{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--line)}.section-head h2{margin:0;font-size:15px}.hint{font-size:12px;color:var(--muted)}
+.table-wrap{overflow:auto;max-height:62vh;border-radius:0 0 var(--radius) var(--radius)}table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:#121821}th,td{border-right:1px solid #25313f;border-bottom:1px solid #25313f;padding:0;text-align:center;height:43px}th{background:#1a2330;color:#aebdcd;font-size:11px;font-weight:800;position:sticky;top:0;z-index:4;padding:7px 5px}.weekend{background:#241f1d!important;color:#e5ae70!important}
+.sticky-name{position:sticky;left:0;z-index:3;background:#18212b!important;min-width:172px;text-align:left;padding:0 10px}.sticky-role{position:sticky;left:172px;z-index:3;background:#151e28!important;min-width:100px;text-align:left;padding:0 9px;color:var(--muted)}th.sticky-name,th.sticky-role{z-index:7}.day{width:35px;min-width:35px;user-select:none;font-weight:900;transition:.12s}.day:hover{outline:2px solid #ffffff25;outline-offset:-2px}.s-p{background:#173b30;color:#55e4a8}.s-h{background:#463a18;color:#ffd66e}.s-i{background:#17304b;color:#71baff}.s-r{background:#392657;color:#caa6ff}.s-x{background:#421f27;color:#ff8e99}
+.total{min-width:64px;font-weight:800;background:#141c25}.money{min-width:105px;color:#dce7f1}.net{min-width:120px;background:#143227;color:#65e5ad;font-weight:900}
+.summary{margin-top:14px}.summary .table-wrap{max-height:none}.summary td{padding:5px}.table-input{width:92px;text-align:right;padding:7px}.name-input{width:150px;text-align:left}.role-input{width:92px;text-align:left}.delete{border:0;background:transparent;color:#ff7885;font-size:17px;padding:8px}.empty{padding:38px;text-align:center;color:var(--muted)}
+.legend{display:flex;gap:13px;flex-wrap:wrap;color:var(--muted);padding:11px 15px;border-top:1px solid var(--line);font-size:12px}.dot{display:inline-grid;place-items:center;width:21px;height:21px;border-radius:6px;margin-right:5px;font-weight:900}
+footer{color:#667789;text-align:center;font-size:11px;margin:17px}.toast{position:fixed;right:18px;bottom:18px;background:#effaf4;color:#133b29;padding:11px 15px;border-radius:10px;font-weight:800;opacity:0;transform:translateY(15px);transition:.25s;pointer-events:none;z-index:20}.toast.show{opacity:1;transform:none}
+@media(max-width:900px){.app{padding:10px}.stats{grid-template-columns:repeat(2,1fr)}.stats .stat:last-child{grid-column:span 2}.actions{width:100%}.actions .btn{flex:1}.modebar{margin-left:0;width:100%}.mode{flex:1}.brand h1{font-size:17px}.sticky-name{min-width:140px}.sticky-role{left:140px;min-width:82px}.stat .value{font-size:20px}}
+@media print{body{background:white;color:#111}.app{max-width:none;padding:0}.actions,.modebar,.hint,.legend,footer,.add-area{display:none!important}.toolbar,.card{box-shadow:none;border:1px solid #aaa;background:white}.stats{grid-template-columns:repeat(5,1fr)}.stat{color:#111}.table-wrap{overflow:visible;max-height:none}th{position:static;background:#eee!important;color:#111}.sticky-name,.sticky-role{position:static;background:white!important;color:#111!important}.day{color:#111!important}.s-p{background:#d9f5e9!important}.s-h{background:#fff1bf!important}.s-i{background:#dcedff!important}.s-r{background:#eee2ff!important}.s-x{background:#ffdfe2!important}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="brand"><div class="logo">♜</div><div><h1>BAR • PUANTAJ & ÜCRET TAKİBİ</h1><p>Günlük yevmiyeli çalışanlar için aylık kontrol paneli</p></div></div>
+<div class="actions"><button class="btn primary" id="addBtn">＋ Çalışan Ekle</button><button class="btn" id="csvBtn">Excel / CSV</button><button class="btn" id="backupBtn">Yedek Al</button><button class="btn" id="restoreBtn">Yedek Yükle</button><button class="btn" onclick="window.print()">Yazdır</button><input hidden type="file" id="fileInput" accept=".json"></div></header>
+<div class="toolbar">
+<label class="field">Ay <select id="month"></select></label><label class="field">Yıl <select id="year"></select></label>
+<div class="modebar" id="modebar">
+<button class="mode active" data-mode="p">✓ Geldi</button><button class="mode" data-mode="h">½ Yarım</button><button class="mode" data-mode="i">İzin</button><button class="mode" data-mode="r">Rapor</button><button class="mode" data-mode="x">× Gelmedi</button><button class="mode" data-mode="">Sil</button>
+</div></div>
+<div class="stats" id="stats"></div>
+<section class="card">
+<div class="section-head"><h2>Günlük Toplu Puantaj</h2><span class="hint">Durumu seçin, sonra gün hücrelerine dokunun. Aynı hücreye tekrar dokunmak tiki kaldırır.</span></div>
+<div class="table-wrap"><table id="attendance"></table></div>
+<div class="legend"><span><b class="dot s-p">✓</b>Geldi (1 gün)</span><span><b class="dot s-h">½</b>Yarım (0,5 gün)</span><span><b class="dot s-i">İ</b>Ücretli izin (1 gün)</span><span><b class="dot s-r">R</b>Rapor</span><span><b class="dot s-x">×</b>Gelmedi</span></div>
+</section>
+<section class="card summary">
+<div class="section-head"><h2>Aylık Ücret, Avans ve Ödeme Özeti</h2><span class="hint">Tutar alanları otomatik kaydedilir. Net hakediş = yevmiye + mesai + prim − avans − kesinti</span></div>
+<div class="table-wrap"><table id="summary"></table></div>
+</section>
+<footer>Bilgiler yalnızca bu cihazın tarayıcısında saklanır. Düzenli olarak “Yedek Al” ile kopya oluşturun.</footer>
+</div><div class="toast" id="toast"></div>
+<script>
+const $=s=>document.querySelector(s), months=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+const KEY='barPuantajV1', now=new Date(); let mode='p', db;
+function blankDB(){return {employees:[],months:{},settings:{}}}
+try{db=JSON.parse(localStorage.getItem(KEY))||blankDB()}catch(e){db=blankDB()}
+if(!Array.isArray(db.employees))db.employees=[]; if(!db.months)db.months={};
+for(let i=0;i<12;i++)$('#month').add(new Option(months[i],i));
+for(let y=now.getFullYear()-3;y<=now.getFullYear()+3;y++)$('#year').add(new Option(y,y));
+$('#month').value=now.getMonth();$('#year').value=now.getFullYear();
+const monthKey=()=>$('#year').value+'-'+String(+$('#month').value+1).padStart(2,'0');
+const daysInMonth=()=>new Date(+$('#year').value,+$('#month').value+1,0).getDate();
+function md(){const k=monthKey();return db.months[k]||(db.months[k]={attendance:{},finance:{}})}
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function trMoney(n){return new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY',maximumFractionDigits:2}).format(+n||0)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(t){let e=$('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),1800)}
+function state(emp,day){return md().attendance[emp]?.[day]||''}
+function calc(emp){
+ const e=db.employees.find(x=>x.id===emp), a=md().attendance[emp]||{}, f=md().finance[emp]||{};
+ let full=0,half=0,leave=0,report=0,absent=0;
+ Object.values(a).forEach(v=>{if(v==='p')full++;if(v==='h')half++;if(v==='i')leave++;if(v==='r')report++;if(v==='x')absent++});
+ const paid=full+half*.5+leave, base=paid*(+e.rate||0), overtime=(+f.overtime||0)*(+f.overtimeRate||0), bonus=+f.bonus||0, advance=+f.advance||0, deduction=+f.deduction||0, net=base+overtime+bonus-advance-deduction;
+ return {full,half,leave,report,absent,paid,base,overtime,bonus,advance,deduction,net};
+}
+function symbols(v){return {p:'✓',h:'½',i:'İ',r:'R',x:'×'}[v]||''}
+function render(){
+ const n=daysInMonth(), att=$('#attendance'); let h='<thead><tr><th class="sticky-name">Çalışan</th><th class="sticky-role">Görev</th>';
+ for(let d=1;d<=n;d++){let dt=new Date(+$('#year').value,+$('#month').value,d),we=dt.getDay()==0||dt.getDay()==6;h+='<th class="'+(we?'weekend':'')+'">'+d+'<br><small>'+['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'][dt.getDay()]+'</small></th>'}
+ h+='<th>Gün</th><th>Hakediş</th></tr></thead><tbody>';
+ if(!db.employees.length)h+='<tr><td class="empty" colspan="'+(n+4)+'">Henüz çalışan yok. “Çalışan Ekle” düğmesine basın.</td></tr>';
+ db.employees.forEach(e=>{let c=calc(e.id);h+='<tr><td class="sticky-name">'+esc(e.name)+'</td><td class="sticky-role">'+esc(e.role)+'</td>';
+  for(let d=1;d<=n;d++){let v=state(e.id,d),dt=new Date(+$('#year').value,+$('#month').value,d),we=dt.getDay()==0||dt.getDay()==6;h+='<td class="day s-'+v+(we&&!v?' weekend':'')+'" data-e="'+e.id+'" data-d="'+d+'" title="'+d+' '+months[+$('#month').value]+'">'+symbols(v)+'</td>'}
+  h+='<td class="total">'+c.paid.toLocaleString('tr-TR')+'</td><td class="money">'+trMoney(c.base)+'</td></tr>'});
+ h+='</tbody>';att.innerHTML=h;
+ renderSummary();renderStats();
+}
+function renderSummary(){
+ let h='<thead><tr><th>Çalışan</th><th>Görev</th><th>Yevmiye</th><th>Tam</th><th>Yarım</th><th>İzin</th><th>Rapor</th><th>Gelmedi</th><th>Ücretli Gün</th><th>Mesai Saat</th><th>Mesai/Saat</th><th>Prim</th><th>Avans</th><th>Kesinti</th><th>Net Hakediş</th><th></th></tr></thead><tbody>';
+ db.employees.forEach(e=>{let c=calc(e.id),f=md().finance[e.id]||{};h+='<tr data-row="'+e.id+'"><td><input class="table-input name-input emp" data-f="name" value="'+esc(e.name)+'"></td><td><input class="table-input role-input emp" data-f="role" value="'+esc(e.role)+'"></td><td><input type="number" min="0" step=".01" class="table-input emp" data-f="rate" value="'+(+e.rate||0)+'"></td><td>'+c.full+'</td><td>'+c.half+'</td><td>'+c.leave+'</td><td>'+c.report+'</td><td>'+c.absent+'</td><td><b>'+c.paid.toLocaleString('tr-TR')+'</b></td>'+
+ ['overtime','overtimeRate','bonus','advance','deduction'].map(k=>'<td><input type="number" min="0" step=".01" class="table-input fin" data-f="'+k+'" value="'+(+f[k]||0)+'"></td>').join('')+
+ '<td class="net">'+trMoney(c.net)+'</td><td><button class="delete" data-del="'+e.id+'" title="Çalışanı sil">✕</button></td></tr>'});
+ if(!db.employees.length)h+='<tr><td class="empty" colspan="16">Aylık özet, çalışan eklendiğinde burada oluşur.</td></tr>';
+ h+='</tbody>';$('#summary').innerHTML=h;
+}
+function renderStats(){
+ let t={staff:db.employees.length,paid:0,advance:0,gross:0,net:0};
+ db.employees.forEach(e=>{let c=calc(e.id);t.paid+=c.paid;t.advance+=c.advance;t.gross+=c.base+c.overtime+c.bonus;t.net+=c.net});
+ $('#stats').innerHTML=[
+ ['Aktif Çalışan',t.staff,'kişi'],['Toplam Ücretli Gün',t.paid.toLocaleString('tr-TR'),'yevmiye eşdeğeri'],['Brüt Hakediş',trMoney(t.gross),'yevmiye + mesai + prim'],['Toplam Avans',trMoney(t.advance),'ay içinde verilen'],['Ödenecek Net',trMoney(t.net),'kesintiler sonrası']
+ ].map(x=>'<div class="card stat"><div class="label">'+x[0]+'</div><div class="value">'+x[1]+'</div><small>'+x[2]+'</small></div>').join('');
+}
+$('#attendance').addEventListener('click',e=>{let c=e.target.closest('.day');if(!c)return;let a=md().attendance[c.dataset.e]||(md().attendance[c.dataset.e]={});a[c.dataset.d]=a[c.dataset.d]===mode?'':mode;if(!a[c.dataset.d])delete a[c.dataset.d];save();render()});
+$('#modebar').addEventListener('click',e=>{let b=e.target.closest('.mode');if(!b)return;mode=b.dataset.mode;document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x===b))});
+$('#summary').addEventListener('change',e=>{let row=e.target.closest('[data-row]');if(!row)return;let id=row.dataset.row,field=e.target.dataset.f;if(e.target.classList.contains('emp')){let emp=db.employees.find(x=>x.id===id);emp[field]=field==='rate'?+e.target.value:e.target.value.trim()}else{let f=md().finance[id]||(md().finance[id]={});f[field]=+e.target.value||0}save();render()});
+$('#summary').addEventListener('click',e=>{let b=e.target.closest('[data-del]');if(!b)return;let emp=db.employees.find(x=>x.id===b.dataset.del);if(!confirm((emp?.name||'Çalışan')+' silinsin mi? Tüm aylardaki kayıtları da silinir.'))return;db.employees=db.employees.filter(x=>x.id!==b.dataset.del);Object.values(db.months).forEach(m=>{delete m.attendance[b.dataset.del];delete m.finance[b.dataset.del]});save();render();toast('Çalışan silindi')});
+$('#addBtn').onclick=()=>{let name=prompt('Çalışanın adı soyadı:');if(!name?.trim())return;let role=prompt('Görevi (Garson, Barmen, Komi vb.):','Garson')||'';let rate=prompt('Günlük yevmiye (₺):','1000');if(rate===null)return;db.employees.push({id:'e'+Date.now()+Math.random().toString(16).slice(2),name:name.trim(),role:role.trim(),rate:+String(rate).replace(',','.')||0});save();render();toast('Çalışan eklendi')};
+$('#month').onchange=$('#year').onchange=render;
+$('#csvBtn').onclick=()=>{
+ let n=daysInMonth(),rows=[['Ay','Çalışan','Görev','Günlük Yevmiye',...Array.from({length:n},(_,i)=>String(i+1)),'Tam Gün','Yarım Gün','İzin','Rapor','Gelmedi','Ücretli Gün','Yevmiye Tutarı','Mesai Saati','Mesai Tutarı','Prim','Avans','Kesinti','Net Hakediş']];
+ db.employees.forEach(e=>{let c=calc(e.id),f=md().finance[e.id]||{};rows.push([monthKey(),e.name,e.role,e.rate,...Array.from({length:n},(_,i)=>symbols(state(e.id,i+1)),c.full,c.half,c.leave,c.report,c.absent,c.paid,c.base,+f.overtime||0,c.overtime,c.bonus,c.advance,c.deduction,c.net])});
+ let csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(';')).join('\r\n');download(csv,'bar_puantaj_'+monthKey()+'.csv','text/csv;charset=utf-8');toast('Excel dosyası hazırlandı')};
+$('#backupBtn').onclick=()=>{download(JSON.stringify(db,null,2),'bar_puantaj_yedek_'+new Date().toISOString().slice(0,10)+'.json','application/json');toast('Yedek indirildi')};
+$('#restoreBtn').onclick=()=>$('#fileInput').click();
+$('#fileInput').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let x=JSON.parse(await f.text());if(!x.employees||!x.months)throw 0;if(confirm('Mevcut veriler yedek dosyasıyla değiştirilsin mi?')){db=x;save();render();toast('Yedek yüklendi')}}catch(err){alert('Geçerli bir puantaj yedeği seçin.')}e.target.value=''};
+function download(content,name,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+render();
+</script>
+</body></html>
