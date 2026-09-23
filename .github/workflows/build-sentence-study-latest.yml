@@ -1,0 +1,40 @@
+name: Build Sentence Study Latest APK
+
+on:
+  push:
+    branches:
+      - build-sentence-study-apk-20260924
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Restore project
+        shell: bash
+        run: |
+          rm -rf sentence-study-apk
+          mkdir -p sentence-study-apk
+          tar -xJf sentence-study-project-latest.tar.xz -C sentence-study-apk
+
+      - name: Build APK
+        working-directory: sentence-study-apk
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SentenceStudyAPK
+          path: sentence-study-apk/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
