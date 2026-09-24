@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.yilmaz.vocab10000'
+    namespace 'com.yilmaz.sentencestudy'
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.yilmaz.vocab10000'
+        applicationId 'com.yilmaz.sentencestudy'
         minSdk 24
         targetSdk 35
         versionCode 1
