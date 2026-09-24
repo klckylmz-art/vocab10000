@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - build-sentence-study-apk-20260924
+    paths:
+      - '.apk-build-trigger'
   workflow_dispatch:
 
 jobs:
@@ -19,22 +21,30 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.11.1'
+          gradle-version: '8.9'
 
-      - name: Restore project
+      - name: Restore current Android project
         shell: bash
         run: |
           rm -rf sentence-study-apk
           mkdir -p sentence-study-apk
-          tar -xJf sentence-study-project-latest.tar.xz -C sentence-study-apk
+          cat apk_payload/part* > /tmp/sentence-study-current.tar.gz.b64
+          base64 -d /tmp/sentence-study-current.tar.gz.b64 > /tmp/sentence-study-current.tar.gz
+          tar -xzf /tmp/sentence-study-current.tar.gz -C sentence-study-apk
+          test -f sentence-study-apk/app/build.gradle
+          test -f sentence-study-apk/app/src/main/assets/index.html
+          test -f sentence-study-apk/app/src/main/assets/sentences.json
 
       - name: Build APK
         working-directory: sentence-study-apk
-        run: gradle :app:assembleDebug --stacktrace
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Verify APK exists
+        run: test -s sentence-study-apk/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SentenceStudyAPK
+          name: SentenceStudy-APK
           path: sentence-study-apk/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
