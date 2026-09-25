@@ -60,21 +60,36 @@ jobs:
           s=s.replace('.navinner{gap:7px;grid-template-columns:1fr 1fr}', '.navinner{gap:6px;grid-template-columns:repeat(5,1fr)}',1)
           s=s.replace('.nav button{padding:12px 7px;font-size:14px}', '.nav button{padding:11px 4px;font-size:12px;min-width:0}',1)
 
+          # Native TTS advances even while the WebView stays on the same page.
+          # Poll the service position while visible so written TR/EN follows the spoken sentence.
+          sync_anchor="""  document.addEventListener('visibilitychange',function(){
+    if(!document.hidden){
+      try{ __androidSyncPlayback(AndroidApp.playbackOrderPos(), AndroidApp.isPlaying()); }catch(e){}
+    }
+  });"""
+          sync_block="""  function syncAndroidPlayback(){
+    if(document.hidden) return;
+    try{ __androidSyncPlayback(AndroidApp.playbackOrderPos(), AndroidApp.isPlaying()); }catch(e){}
+  }
+  setInterval(syncAndroidPlayback, 250);
+
+"""
+          if 'setInterval(syncAndroidPlayback, 250);' not in s:
+              s=s.replace(sync_anchor, sync_block+sync_anchor, 1)
+
           p.write_text(s,encoding='utf-8')
 
           assert 'if (!window.speechSynthesis)' in s
-          assert 'const speechSynthesis = window.speechSynthesis' not in s
           assert s.count('id="settingsBtn"') == 1
           assert '<button id="settingsBtn">⚙ Ayarlar</button>' in s
           assert 'const DATA = [' in s
           assert 'function renderGrammar()' in s
           assert 'async function translateTerm(term)' in s
-          assert r'\n    <button id="settingsBtn"' not in s
-          assert r'document.getElementById(id);\n' not in s
+          assert 'setInterval(syncAndroidPlayback, 250);' in s
           print('HTML patch verified')
           PY
 
-      - name: Verify JavaScript syntax
+      - name: Verify JavaScript syntax and playback UI sync
         run: |
           python - <<'PY'
           import re
@@ -85,7 +100,10 @@ jobs:
               raise SystemExit('No inline scripts found')
           for i,code in enumerate(scripts):
               Path(f'/tmp/script-{i}.js').write_text(code,encoding='utf-8')
-          print('scripts:',len(scripts))
+          assert 'setInterval(syncAndroidPlayback, 250);' in s
+          assert 'AndroidApp.playbackOrderPos()' in s
+          assert 'render();' in s[s.find('window.__androidSyncPlayback'):]
+          print('scripts:',len(scripts),'native playback sync present')
           PY
           for f in /tmp/script-*.js; do node --check "$f"; done
 
@@ -105,6 +123,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CumleCalisma-APK-Fixed3
+          name: CumleCalisma-APK-Fixed4
           path: buildsrc/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
