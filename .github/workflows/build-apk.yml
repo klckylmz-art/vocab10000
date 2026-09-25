@@ -1,34 +1,49 @@
-name: Build Android APK
+name: Build Cumle Calisma APK
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: [ sentence-app-apk ]
+    paths:
+      - 'apk_src/**'
+      - '.github/workflows/build-apk.yml'
+      - '.build-trigger'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Restore Android project
+        run: |
+          cat apk_src/chunk*.txt > /tmp/cumle-project.b64
+          base64 -d /tmp/cumle-project.b64 > /tmp/cumle-project.tar.xz
+          mkdir -p buildsrc
+          tar -xJf /tmp/cumle-project.tar.xz -C buildsrc --strip-components=1
+          test -f buildsrc/settings.gradle
+          test -f buildsrc/app/src/main/assets/index.html
+          test -f buildsrc/app/src/main/java/net/ytutor/sentenceapp/PlaybackService.java
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
-      - name: Download vocabulary source
-        run: |
-          curl -L --fail --retry 3 \
-            https://raw.githubusercontent.com/first20hours/google-10000-english/master/20k.txt \
-            -o app/src/main/assets/20k.txt
-          test "$(wc -l < app/src/main/assets/20k.txt)" -ge 19000
+          gradle-version: '8.10.2'
+
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+        working-directory: buildsrc
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Vocab10000-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: CumleCalisma-APK
+          path: buildsrc/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
