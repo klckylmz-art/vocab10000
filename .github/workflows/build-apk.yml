@@ -35,36 +35,59 @@ jobs:
           p=Path('buildsrc/app/src/main/assets/index.html')
           s=p.read_text(encoding='utf-8')
 
-          # Android WebView may not expose the browser SpeechSynthesis API.
-          # Provide a harmless fallback so initial render and event binding never crash.
+          # Android WebView may not expose browser SpeechSynthesis.
+          # Do not redeclare the global name; install a window fallback instead.
           marker="const $ = id => document.getElementById(id);"
-          fallback="""const speechSynthesis = window.speechSynthesis || {\n  cancel(){},\n  getVoices(){ return []; },\n  speak(u){ try{ if(u && typeof u.onend==='function') setTimeout(()=>u.onend(),0); }catch(e){} },\n  onvoiceschanged:null\n};"""
+          fallback="""if (!window.speechSynthesis) {
+  window.speechSynthesis = {
+    cancel(){},
+    getVoices(){ return []; },
+    speak(u){ try{ if(u && typeof u.onend==='function') setTimeout(()=>u.onend(),0); }catch(e){} },
+    onvoiceschanged:null
+  };
+}"""
           if fallback not in s:
-              s=s.replace(marker, marker+'\\n'+fallback, 1)
+              s=s.replace(marker, marker+'\n'+fallback, 1)
 
-          # Move Settings from the top bar to the fixed bottom navigation.
+          # Move Settings from top bar to fixed bottom navigation.
           old_top='<button class="iconBtn" id="settingsBtn" aria-label="Ayarlar" title="Ayarlar">⚙</button>'
           s=s.replace(old_top,'<div aria-hidden="true"></div>',1)
           old_nav='<button id="grammarBtn" class="grammarBtn">Grammar</button>'
-          new_nav=old_nav+'\\n    <button id="settingsBtn">⚙ Ayarlar</button>'
+          new_nav=old_nav+'\n    <button id="settingsBtn">⚙ Ayarlar</button>'
           s=s.replace(old_nav,new_nav,1)
 
-          # Five equal bottom controls; keep them tappable on narrow phones.
+          # Five compact bottom controls on phones.
           s=s.replace('grid-template-columns:1fr 1.2fr 1fr 1fr;','grid-template-columns:repeat(5,1fr);',1)
-          s=s.replace('@media(max-width:650px){','@media(max-width:650px){',1)
           s=s.replace('.navinner{gap:7px;grid-template-columns:1fr 1fr}', '.navinner{gap:6px;grid-template-columns:repeat(5,1fr)}',1)
           s=s.replace('.nav button{padding:12px 7px;font-size:14px}', '.nav button{padding:11px 4px;font-size:12px;min-width:0}',1)
 
           p.write_text(s,encoding='utf-8')
 
-          # Verification of patch invariants.
-          assert 'const speechSynthesis = window.speechSynthesis ||' in s
+          assert 'if (!window.speechSynthesis)' in s
+          assert 'const speechSynthesis = window.speechSynthesis' not in s
           assert s.count('id="settingsBtn"') == 1
           assert '<button id="settingsBtn">⚙ Ayarlar</button>' in s
           assert 'const DATA = [' in s
           assert 'function renderGrammar()' in s
-          print('HTML patch verified')
+          assert "\\n    <button id=\"settingsBtn\"" not in s
+          assert "document.getElementById(id);\\n" not in s
+          print('HTML patch invariants verified')
           PY
+
+      - name: Verify JavaScript syntax
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          s=Path('buildsrc/app/src/main/assets/index.html').read_text(encoding='utf-8')
+          scripts=re.findall(r'<script>(.*?)</script>',s,re.S)
+          if not scripts:
+              raise SystemExit('No inline scripts found')
+          for i,code in enumerate(scripts):
+              Path(f'/tmp/script-{i}.js').write_text(code,encoding='utf-8')
+          print('scripts:',len(scripts))
+          PY
+          for f in /tmp/script-*.js; do node --check "$f"; done
 
       - uses: actions/setup-java@v4
         with:
@@ -82,6 +105,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CumleCalisma-APK-Fixed
+          name: CumleCalisma-APK-Fixed2
           path: buildsrc/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
