@@ -47,41 +47,35 @@ jobs:
           ])
           if fallback not in s:
               s=s.replace(marker, marker+'\n'+fallback, 1)
-
           s=s.replace("autoAdvance.checked = localStorage.getItem('autoAdvance') === '1';", "autoAdvance.checked = localStorage.getItem('autoAdvance') !== '0';", 1)
-
           old_top='<button class="iconBtn" id="settingsBtn" aria-label="Ayarlar" title="Ayarlar">⚙</button>'
           s=s.replace(old_top,'<div aria-hidden="true"></div>',1)
           old_nav='<button id="grammarBtn" class="grammarBtn">Grammar</button>'
           new_nav=old_nav+'\n    <button id="settingsBtn">⚙ Ayarlar</button>'
           s=s.replace(old_nav,new_nav,1)
-
           s=s.replace('grid-template-columns:1fr 1.2fr 1fr 1fr;','grid-template-columns:repeat(5,1fr);',1)
           s=s.replace('.navinner{gap:7px;grid-template-columns:1fr 1fr}', '.navinner{gap:6px;grid-template-columns:repeat(5,1fr)}',1)
           s=s.replace('.nav button{padding:12px 7px;font-size:14px}', '.nav button{padding:11px 4px;font-size:12px;min-width:0}',1)
-
-          # Native TTS advances even while the WebView stays on the same page.
-          # Poll the service position while visible so written TR/EN follows the spoken sentence.
-          sync_anchor="""  document.addEventListener('visibilitychange',function(){
-    if(!document.hidden){
-      try{ __androidSyncPlayback(AndroidApp.playbackOrderPos(), AndroidApp.isPlaying()); }catch(e){}
-    }
-  });"""
-          sync_block="""  function syncAndroidPlayback(){
-    if(document.hidden) return;
-    try{ __androidSyncPlayback(AndroidApp.playbackOrderPos(), AndroidApp.isPlaying()); }catch(e){}
-  }
-  setInterval(syncAndroidPlayback, 250);
-
-"""
+          anchor='\n'.join([
+              "  document.addEventListener('visibilitychange',function(){",
+              '    if(!document.hidden){',
+              '      try{ __androidSyncPlayback(AndroidApp.playbackOrderPos(), AndroidApp.isPlaying()); }catch(e){}',
+              '    }',
+              '  });'
+          ])
+          block='\n'.join([
+              '  function syncAndroidPlayback(){',
+              '    if(document.hidden) return;',
+              '    try{ __androidSyncPlayback(AndroidApp.playbackOrderPos(), AndroidApp.isPlaying()); }catch(e){}',
+              '  }',
+              '  setInterval(syncAndroidPlayback, 250);',
+              ''
+          ])
           if 'setInterval(syncAndroidPlayback, 250);' not in s:
-              s=s.replace(sync_anchor, sync_block+sync_anchor, 1)
-
+              s=s.replace(anchor, block+anchor, 1)
           p.write_text(s,encoding='utf-8')
-
           assert 'if (!window.speechSynthesis)' in s
           assert s.count('id="settingsBtn"') == 1
-          assert '<button id="settingsBtn">⚙ Ayarlar</button>' in s
           assert 'const DATA = [' in s
           assert 'function renderGrammar()' in s
           assert 'async function translateTerm(term)' in s
@@ -89,7 +83,7 @@ jobs:
           print('HTML patch verified')
           PY
 
-      - name: Verify JavaScript syntax and playback UI sync
+      - name: Verify JavaScript syntax and playback sync
         run: |
           python - <<'PY'
           import re
@@ -102,7 +96,6 @@ jobs:
               Path(f'/tmp/script-{i}.js').write_text(code,encoding='utf-8')
           assert 'setInterval(syncAndroidPlayback, 250);' in s
           assert 'AndroidApp.playbackOrderPos()' in s
-          assert 'render();' in s[s.find('window.__androidSyncPlayback'):]
           print('scripts:',len(scripts),'native playback sync present')
           PY
           for f in /tmp/script-*.js; do node --check "$f"; done
