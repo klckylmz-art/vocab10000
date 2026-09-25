@@ -5,6 +5,7 @@ on:
     branches: [ sentence-app-apk ]
     paths:
       - 'apk_src/**'
+      - 'scripts/patch_voice_features.py'
       - '.github/workflows/build-apk.yml'
       - '.build-trigger'
   workflow_dispatch:
@@ -80,10 +81,13 @@ jobs:
           assert 'function renderGrammar()' in s
           assert 'async function translateTerm(term)' in s
           assert 'setInterval(syncAndroidPlayback, 250);' in s
-          print('HTML patch verified')
+          print('HTML base patch verified')
           PY
 
-      - name: Verify JavaScript syntax and playback sync
+      - name: Add voice preview favorites and hidden list
+        run: python scripts/patch_voice_features.py
+
+      - name: Verify JavaScript and voice controls
         run: |
           python - <<'PY'
           import re
@@ -96,7 +100,13 @@ jobs:
               Path(f'/tmp/script-{i}.js').write_text(code,encoding='utf-8')
           assert 'setInterval(syncAndroidPlayback, 250);' in s
           assert 'AndroidApp.playbackOrderPos()' in s
-          print('scripts:',len(scripts),'native playback sync present')
+          assert 'id="trPreviewVoice"' in s
+          assert 'id="enPreviewVoice"' in s
+          assert 'ttsVoiceFavorites' in s
+          assert 'ttsVoiceHidden' in s
+          assert 'previewSelectedVoice' in s
+          assert 'applySelectedVoice' in s
+          print('scripts:',len(scripts),'voice controls and playback sync present')
           PY
           for f in /tmp/script-*.js; do node --check "$f"; done
 
@@ -116,6 +126,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CumleCalisma-APK-Fixed4
+          name: CumleCalisma-APK-Fixed5
           path: buildsrc/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
