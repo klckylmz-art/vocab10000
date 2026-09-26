@@ -23,12 +23,13 @@ jobs:
           base64 -d /tmp/mixed-project.b64 > /tmp/mixed-project.tar.xz
           mkdir -p /tmp/mixed-unpack
           tar -xJf /tmp/mixed-project.tar.xz -C /tmp/mixed-unpack || true
-          find /tmp/mixed-unpack -maxdepth 5 -type f | sort | head -100
           ROOT=$(find /tmp/mixed-unpack -name settings.gradle -printf '%h\n' | head -1)
           test -n "$ROOT"
           echo "ROOT=$ROOT" >> "$GITHUB_ENV"
           test -f "$ROOT/app/build.gradle"
           test -f "$ROOT/app/src/main/assets/index.html"
+          test -f "$ROOT/app/src/main/java/net/ytutor/sentenceapp/MainActivity.java"
+          test -f "$ROOT/app/src/main/java/net/ytutor/sentenceapp/PlaybackService.java"
 
       - name: Make package independently installable and fix navigation
         run: |
@@ -54,7 +55,7 @@ jobs:
           h=h.replace("if(e.key==='ArrowRight') nextSentence(false);", "if(e.key==='ArrowRight') navigateSentence(1, true);", 1)
           h=h.replace("if(e.key==='ArrowLeft') prevSentence();", "if(e.key==='ArrowLeft') navigateSentence(-1, true);", 1)
           p.write_text(h,encoding='utf-8')
-          assert "applicationId 'net.ytutor.sentenceapp.mixed2'" in g
+          assert "applicationId 'net.ytutor.sentenceapp.mixed2'" in s
           assert 'function navigateSentence(delta' in h
           assert "$('next').onclick=()=>navigateSentence(1, true);" in h
           print('package and navigation verified')
