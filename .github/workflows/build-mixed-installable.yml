@@ -22,7 +22,8 @@ jobs:
           cat apk2_src/chunk*.txt > /tmp/mixed-project.b64
           base64 -d /tmp/mixed-project.b64 > /tmp/mixed-project.tar.xz
           mkdir -p /tmp/mixed-unpack
-          tar -xJf /tmp/mixed-project.tar.xz -C /tmp/mixed-unpack
+          tar -xJf /tmp/mixed-project.tar.xz -C /tmp/mixed-unpack || true
+          find /tmp/mixed-unpack -maxdepth 5 -type f | sort | head -100
           ROOT=$(find /tmp/mixed-unpack -name settings.gradle -printf '%h\n' | head -1)
           test -n "$ROOT"
           echo "ROOT=$ROOT" >> "$GITHUB_ENV"
