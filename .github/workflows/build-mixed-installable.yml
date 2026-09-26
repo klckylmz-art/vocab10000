@@ -43,7 +43,7 @@ jobs:
           cp "$MIXED_ROOT/app/src/main/assets/index.html" "$ROOT/app/src/main/assets/index.html"
           test -s "$ROOT/app/src/main/assets/index.html"
 
-      - name: Make package independently installable and fix navigation
+      - name: Make package independently installable and override navigation
         run: |
           python - <<'PY'
           import os,re
@@ -51,28 +51,39 @@ jobs:
           root=Path(os.environ['ROOT'])
           g=root/'app/build.gradle'
           s=g.read_text(encoding='utf-8')
-          s=re.sub(r"applicationId\s+['\"][^'\"]+['\"]", "applicationId 'net.ytutor.sentenceapp.mixed4'", s, count=1)
-          s=re.sub(r'versionCode\s+\d+', 'versionCode 4', s, count=1)
-          s=re.sub(r"versionName\s+['\"][^'\"]+['\"]", "versionName '4.0'", s, count=1)
+          s=re.sub(r"applicationId\s+['\"][^'\"]+['\"]", "applicationId 'net.ytutor.sentenceapp.mixed5'", s, count=1)
+          s=re.sub(r'versionCode\s+\d+', 'versionCode 5', s, count=1)
+          s=re.sub(r"versionName\s+['\"][^'\"]+['\"]", "versionName '5.0'", s, count=1)
           g.write_text(s,encoding='utf-8')
 
           p=root/'app/src/main/assets/index.html'
           h=p.read_text(encoding='utf-8')
-          nav='''function navigateSentence(delta, restartPlayback=false){\n  const wasPlaying=isPlaying;\n  isPlaying=false;\n  try{ speechSynthesis.cancel(); }catch(e){}\n  const len=order.length || ACTIVE_DATA.length;\n  orderPos=(orderPos+delta+len)%len;\n  syncIndex();\n  render();\n  if(wasPlaying && restartPlayback){\n    setTimeout(()=>{ if(!isPlaying) playCurrent(); },120);\n  }\n}\nfunction nextSentence(manual=true){ navigateSentence(1, manual); }\nfunction prevSentence(){ navigateSentence(-1, true); }'''
-          if 'function navigateSentence(delta' not in h:
-              pat=r'function nextSentence\(manual=true\)\s*\{.*?\}\s*function prevSentence\(\)\s*\{.*?\}'
-              h,n=re.subn(pat,nav,h,count=1,flags=re.S)
-              if n!=1:
-                  raise SystemExit('Could not locate next/prev functions')
-          h=re.sub(r"\$\('prev'\)\.onclick\s*=\s*prevSentence\s*;", "$('prev').onclick=()=>navigateSentence(-1, true);", h, count=1)
-          h=re.sub(r"\$\('next'\)\.onclick\s*=\s*\(\)\s*=>\s*nextSentence\([^)]*\)\s*;", "$('next').onclick=()=>navigateSentence(1, true);", h, count=1)
-          h=h.replace("if(e.key==='ArrowRight') nextSentence(false);", "if(e.key==='ArrowRight') navigateSentence(1, true);", 1)
-          h=h.replace("if(e.key==='ArrowLeft') prevSentence();", "if(e.key==='ArrowLeft') navigateSentence(-1, true);", 1)
+          override=r'''<script>
+(function(){
+  function fixedNavigate(delta){
+    const wasPlaying=!!isPlaying;
+    isPlaying=false;
+    try{ speechSynthesis.cancel(); }catch(e){}
+    const len=(order && order.length) ? order.length : ACTIVE_DATA.length;
+    orderPos=(orderPos+delta+len)%len;
+    syncIndex();
+    render();
+    if(wasPlaying){ setTimeout(()=>playCurrent(),120); }
+  }
+  const prevBtn=document.getElementById('prev');
+  const nextBtn=document.getElementById('next');
+  if(prevBtn) prevBtn.onclick=function(){ fixedNavigate(-1); };
+  if(nextBtn) nextBtn.onclick=function(){ fixedNavigate(1); };
+  window.__fixedMixedNavigate=fixedNavigate;
+})();
+</script>'''
+          if 'window.__fixedMixedNavigate' not in h:
+              h=h.replace('</body>',override+'\n</body>',1)
           p.write_text(h,encoding='utf-8')
-          assert "applicationId 'net.ytutor.sentenceapp.mixed4'" in s
-          assert 'function navigateSentence(delta' in h
+          assert "applicationId 'net.ytutor.sentenceapp.mixed5'" in s
+          assert 'window.__fixedMixedNavigate' in h
           assert 'Konu 2' in h
-          print('package and navigation verified')
+          print('package and navigation override verified')
           PY
 
       - name: Verify JavaScript
@@ -111,6 +122,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: CumleCalisma-Mixed-Installable-v4
+          name: CumleCalisma-Mixed-Installable-v5
           path: ${{ env.APK }}
           if-no-files-found: error
