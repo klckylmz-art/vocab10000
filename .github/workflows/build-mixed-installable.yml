@@ -4,6 +4,7 @@ on:
   push:
     branches: [ sentence-app-apk ]
     paths:
+      - 'apk_src/**'
       - 'apk2_src/**'
       - '.github/workflows/build-mixed-installable.yml'
   workflow_dispatch:
@@ -17,19 +18,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore mixed Android project
+      - name: Restore complete Android shell
+        run: |
+          cat apk_src/chunk*.txt > /tmp/base-project.b64
+          base64 -d /tmp/base-project.b64 > /tmp/base-project.tar.xz
+          mkdir -p /tmp/base-unpack
+          tar -xJf /tmp/base-project.tar.xz -C /tmp/base-unpack
+          ROOT=$(find /tmp/base-unpack -name settings.gradle -printf '%h\n' | head -1)
+          test -n "$ROOT"
+          echo "ROOT=$ROOT" >> "$GITHUB_ENV"
+          test -f "$ROOT/app/build.gradle"
+          test -f "$ROOT/app/src/main/java/net/ytutor/sentenceapp/MainActivity.java"
+          test -f "$ROOT/app/src/main/java/net/ytutor/sentenceapp/PlaybackService.java"
+
+      - name: Recover mixed HTML from partial archive
         run: |
           cat apk2_src/chunk*.txt > /tmp/mixed-project.b64
           base64 -d /tmp/mixed-project.b64 > /tmp/mixed-project.tar.xz
           mkdir -p /tmp/mixed-unpack
           tar -xJf /tmp/mixed-project.tar.xz -C /tmp/mixed-unpack || true
-          ROOT=$(find /tmp/mixed-unpack -name settings.gradle -printf '%h\n' | head -1)
-          test -n "$ROOT"
-          echo "ROOT=$ROOT" >> "$GITHUB_ENV"
-          test -f "$ROOT/app/build.gradle"
-          test -f "$ROOT/app/src/main/assets/index.html"
-          test -f "$ROOT/app/src/main/java/net/ytutor/sentenceapp/MainActivity.java"
-          test -f "$ROOT/app/src/main/java/net/ytutor/sentenceapp/PlaybackService.java"
+          MIXED_ROOT=$(find /tmp/mixed-unpack -name settings.gradle -printf '%h\n' | head -1)
+          test -n "$MIXED_ROOT"
+          test -f "$MIXED_ROOT/app/src/main/assets/index.html"
+          cp "$MIXED_ROOT/app/src/main/assets/index.html" "$ROOT/app/src/main/assets/index.html"
+          test -s "$ROOT/app/src/main/assets/index.html"
 
       - name: Make package independently installable and fix navigation
         run: |
@@ -39,9 +51,9 @@ jobs:
           root=Path(os.environ['ROOT'])
           g=root/'app/build.gradle'
           s=g.read_text(encoding='utf-8')
-          s=re.sub(r"applicationId\s+['\"][^'\"]+['\"]", "applicationId 'net.ytutor.sentenceapp.mixed2'", s, count=1)
-          s=re.sub(r'versionCode\s+\d+', 'versionCode 2', s, count=1)
-          s=re.sub(r"versionName\s+['\"][^'\"]+['\"]", "versionName '2.0'", s, count=1)
+          s=re.sub(r"applicationId\s+['\"][^'\"]+['\"]", "applicationId 'net.ytutor.sentenceapp.mixed3'", s, count=1)
+          s=re.sub(r'versionCode\s+\d+', 'versionCode 3', s, count=1)
+          s=re.sub(r"versionName\s+['\"][^'\"]+['\"]", "versionName '3.0'", s, count=1)
           g.write_text(s,encoding='utf-8')
 
           p=root/'app/src/main/assets/index.html'
@@ -55,9 +67,10 @@ jobs:
           h=h.replace("if(e.key==='ArrowRight') nextSentence(false);", "if(e.key==='ArrowRight') navigateSentence(1, true);", 1)
           h=h.replace("if(e.key==='ArrowLeft') prevSentence();", "if(e.key==='ArrowLeft') navigateSentence(-1, true);", 1)
           p.write_text(h,encoding='utf-8')
-          assert "applicationId 'net.ytutor.sentenceapp.mixed2'" in s
+          assert "applicationId 'net.ytutor.sentenceapp.mixed3'" in s
           assert 'function navigateSentence(delta' in h
           assert "$('next').onclick=()=>navigateSentence(1, true);" in h
+          assert 'Konu 2' in h
           print('package and navigation verified')
           PY
 
@@ -68,6 +81,7 @@ jobs:
           from pathlib import Path
           h=(Path(os.environ['ROOT'])/'app/src/main/assets/index.html').read_text(encoding='utf-8')
           scripts=re.findall(r'<script>(.*?)</script>',h,re.S)
+          if not scripts: raise SystemExit('No inline JS')
           for i,code in enumerate(scripts): Path(f'/tmp/mixed-{i}.js').write_text(code,encoding='utf-8')
           print('scripts',len(scripts))
           PY
